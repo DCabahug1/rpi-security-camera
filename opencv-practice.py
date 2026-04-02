@@ -1,35 +1,32 @@
-import cv2
+# Import the YOLO class from the Ultralytics package.
+from ultralytics import YOLO
+import cv2  # Import OpenCV so we can read frames from the webcam.
 
-cap = cv2.VideoCapture(0)
+model = YOLO("yolov8n.pt")  # Load the pretrained YOLOv8 nano model.
 
-cv2.namedWindow("Webcam", cv2.WINDOW_FULLSCREEN)
-cv2.setWindowProperty("Webcam", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+cap = cv2.VideoCapture(0)  # Open the default webcam.
 
-cv2.namedWindow("Webcam_Gray", cv2.WINDOW_FULLSCREEN)
-cv2.setWindowProperty("Webcam_Gray", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+cv2.namedWindow("YOLO Webcam", cv2.WINDOW_NORMAL)
+cv2.setWindowProperty(
+    "YOLO Webcam", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
-while True:
-  ret, frame = cap.read()
+while True:  # Keep reading frames until we quit.
+    ret, frame = cap.read()  # Read one frame from the webcam.
 
-  if not ret:
-    print("Unable to read frame")
-    break
+    if not ret:  # Stop if the camera failed to provide a frame.
+        print("Failed to grab frame")
+        break
 
-  cv2.rectangle(frame, (20,20), (80,80), (255,0,0), 2)
+    results = model(frame)  # Run YOLO inference on the current frame.
 
-  gray_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    # Draw YOLO's boxes and labels onto a copy of the frame.
+    annotated_frame = results[0].plot()
 
-  cv2.imshow("Webcam", frame)
-  cv2.imshow('Webcam_Gray', gray_frame)
+    cv2.imshow("YOLO Webcam", annotated_frame)  # Show the annotated result.
 
-  key = cv2.waitKey(1) & 0xFF
+    key = cv2.waitKey(1) & 0xFF  # Check whether a key was pressed.
+    if key == ord("q"):  # Quit when q is pressed.
+        break
 
-  if key == ord('q'):
-    break
-  elif key == ord('s'):
-    cv2.imwrite('color_snapshot.jpg', frame)
-  elif key == ord('g'):
-    cv2.imwrite('gray_snapshot.jpg', gray_frame)
-
-cap.release()
-cv2.destroyAllWindows()
+cap.release()  # Release the webcam.
+cv2.destroyAllWindows()  # Close all OpenCV windows.
