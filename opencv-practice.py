@@ -10,6 +10,9 @@ cv2.namedWindow("YOLO Webcam", cv2.WINDOW_NORMAL)
 cv2.setWindowProperty(
     "YOLO Webcam", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
+counter = 0
+boxes = None
+
 while True:  # Keep reading frames until we quit.
     ret, frame = cap.read()  # Read one frame from the webcam.
 
@@ -17,12 +20,30 @@ while True:  # Keep reading frames until we quit.
         print("Failed to grab frame")
         break
 
-    results = model(frame)  # Run YOLO inference on the current frame.
+    if counter == 3:
+        result = model(frame)[0]
 
-    # Draw YOLO's boxes and labels onto a copy of the frame.
-    annotated_frame = results[0].plot()
+        boxes = result.boxes
+        counter = 0
 
-    cv2.imshow("YOLO Webcam", annotated_frame)  # Show the annotated result.
+    if boxes is not None:
+        for i in range(len(boxes)):
+            x1, y1, x2, y2 = boxes.xyxy[i].tolist()
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+
+            cls_id = int(boxes.cls[i])
+            cls_name = model.names[cls_id]
+
+            confidence = float(boxes.conf[i])
+            confidence = f"{confidence:.2f}"
+
+            cv2.putText(frame, f"{cls_name} {confidence}", (x1, y1),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
+    counter += 1
+
+    cv2.imshow("YOLO Webcam", frame)
 
     key = cv2.waitKey(1) & 0xFF  # Check whether a key was pressed.
     if key == ord("q"):  # Quit when q is pressed.
