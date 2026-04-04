@@ -3,6 +3,21 @@ from ultralytics import YOLO
 import cv2  # Import OpenCV so we can read frames from the webcam.
 import threading
 import numpy as np
+import os
+import time
+import uuid
+from dotenv import load_dotenv
+from supabase import Client, create_client
+
+load_dotenv()
+
+_supabase_url = os.environ.get("SUPABASE_URL")
+_supabase_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY")
+supabase: Client | None
+if _supabase_url and _supabase_key:
+    supabase = create_client(_supabase_url, _supabase_key)
+else:
+    supabase = None
 
 model = YOLO("yolov8n.pt")  # Load the pretrained YOLO nano model.
 
@@ -18,7 +33,6 @@ saving_in_progress: bool = False
 person_detected_recently: bool = False
 save_thread: threading.Thread | None = None
 
-
 def save_and_upload_video(frames: list[np.ndarray], width: int, height: int) -> None:
     global saving_in_progress
     global person_detected_recently
@@ -32,8 +46,37 @@ def save_and_upload_video(frames: list[np.ndarray], width: int, height: int) -> 
 
     out.release()
 
+    upload_video("output.mp4")
+
     saving_in_progress = False
     person_detected_recently = False
+
+
+def upload_video(file_path: str) -> None:
+    """Upload a local file to Supabase Storage (bucket from SUPABASE_STORAGE_BUCKET)."""
+    if supabase is None:
+        print("Supabase client not configured (set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY).")
+        return
+    bucket = os.environ.get("SUPABASE_STORAGE_BUCKET")
+    if not bucket:
+        print("SUPABASE_STORAGE_BUCKET not set; skip upload.")
+        return
+    if not os.path.isfile(file_path):
+        print(f"Upload skipped; missing file: {file_path}")
+        return
+    remote_path = f"clips/{uuid.uuid4().hex}.mp4"
+    try:
+        with open(file_path, "rb") as f:
+            supabase.storage.from_(bucket).upload(
+                remote_path,
+                f,
+                file_options={"content-type": "video/mp4"},
+            )
+        video_url = supabase.storage.from_(bucket).get_public_url(remote_path)
+        supabase.table("recordings").insert({"video_url": video_url}).execute()
+        print(f"Uploaded video to {bucket}/{remote_path}; saved recording row.")
+    except Exception as exc:
+        print(f"Upload failed: {exc}")
 
 
 while True:  # Keep reading frames until we quit.
