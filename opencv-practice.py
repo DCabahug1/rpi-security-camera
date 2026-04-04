@@ -4,6 +4,9 @@ import cv2  # Import OpenCV so we can read frames from the webcam.
 import threading
 import numpy as np
 import os
+import shutil
+import subprocess
+import tempfile
 import time
 import uuid
 from dotenv import load_dotenv
@@ -33,20 +36,66 @@ saving_in_progress: bool = False
 person_detected_recently: bool = False
 save_thread: threading.Thread | None = None
 
+FINAL_VIDEO_PATH = "output.mp4"
+
+
+def encode_for_web(input_path: str, output_path: str) -> None:
+    """Re-mux to faststart + H.264 yuv420p so <video> in browsers can play without full download."""
+    if not shutil.which("ffmpeg"):
+        raise FileNotFoundError("ffmpeg not found on PATH; install ffmpeg to encode clips for the web.")
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            input_path,
+            "-movflags",
+            "+faststart",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-an",
+            output_path,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
 def save_and_upload_video(frames: list[np.ndarray], width: int, height: int) -> None:
     global saving_in_progress
     global person_detected_recently
 
     fps = 30.0
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter("output.mp4", fourcc, fps, (width, height))
+    fd, raw_path = tempfile.mkstemp(suffix=".mp4")
+    os.close(fd)
+    try:
+        out = cv2.VideoWriter(raw_path, fourcc, fps, (width, height))
 
-    for frame in frames:
-        out.write(frame)
+        for frame in frames:
+            out.write(frame)
 
-    out.release()
+        out.release()
 
-    upload_video("output.mp4")
+        try:
+            encode_for_web(raw_path, FINAL_VIDEO_PATH)
+        except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+            print(f"ffmpeg encode failed ({exc}); uploading raw OpenCV file.")
+            shutil.copyfile(raw_path, FINAL_VIDEO_PATH)
+
+        upload_video(FINAL_VIDEO_PATH)
+    finally:
+        try:
+            os.unlink(raw_path)
+        except OSError:
+            pass
 
     saving_in_progress = False
     person_detected_recently = False
