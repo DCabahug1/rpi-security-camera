@@ -20,7 +20,7 @@ while True:  # Keep reading frames until we quit.
         print("Failed to grab frame")
         break
 
-    if counter == 3:
+    if counter == 10:
         result = model(frame)[0]
 
         boxes = result.boxes
