@@ -2,7 +2,15 @@
 
 Practice project: run **YOLOv8** on a webcam feed, **record short clips** when a **person** is detected, **encode** them for the web with **FFmpeg**, and **upload** to **Supabase Storage** with a row in **Postgres** (`recordings`).
 
-Other scripts: `thread_practice.py`, `thread-example.py` (threading / queue demos).
+### Layout
+
+| Path | Role |
+|------|------|
+| `run_camera.py` | Start the webcam app. |
+| `security_camera/config.py` | Loads `.env`, builds the Supabase client. |
+| `security_camera/pipeline.py` | OpenCV write → FFmpeg (H.264 + faststart) → Storage + `recordings` insert. |
+| `security_camera/capture.py` | Main loop: YOLO, buffer, overlay, worker thread. |
+| `examples/thread_queue.py` | Small producer/consumer queue demo. |
 
 ## What you need
 
@@ -52,7 +60,7 @@ The first time you run the main script, **YOLO** may download **`yolov8n.pt`** i
 
 ### 4. Display (OpenCV window)
 
-`opencv-practice.py` uses **`cv2.imshow`** fullscreen. You need a **desktop session** (monitor or VNC) and `DISPLAY` set, or adapt the script for headless use (e.g. remove `imshow` / use a virtual display). SSH without X forwarding will not show a window.
+The capture app uses **`cv2.imshow`** fullscreen. You need a **desktop session** (monitor or VNC) and `DISPLAY` set, or adapt the script for headless use (e.g. remove `imshow` / use a virtual display). SSH without X forwarding will not show a window.
 
 ### 5. Environment variables
 
@@ -75,8 +83,10 @@ Example policies depend on your security model; start from the [Supabase Flask q
 
 ```bash
 source .venv/bin/activate
-python opencv-practice.py
+python run_camera.py
 ```
+
+Alternatively: `python -m security_camera.capture`
 
 - Press **`q`** to quit.
 - Each trigger records **150 frames** at **30 FPS** (~**5 seconds**), writes **`output.mp4`**, uploads to `clips/<uuid>.mp4`, and inserts **`recordings`** with **`video_url`**.
@@ -92,4 +102,4 @@ python opencv-practice.py
 
 ## License
 
-Add a license if you publish the repo publicly.
+MIT — see [`LICENSE`](LICENSE).
