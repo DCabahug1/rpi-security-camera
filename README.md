@@ -2,6 +2,18 @@
 
 Practice project: run **YOLOv8** on a webcam feed, **record short clips** when a **person** is detected, **encode** them for the web with **FFmpeg**, and **upload** to **Supabase Storage** with a row in **Postgres** (`recordings`).
 
+## Web dashboard (same Supabase project)
+
+Use this repo **together** with **[rpi-security-camera-web-dashboard](https://github.com/DCabahug1/rpi-security-camera-web-dashboard)** — a **Next.js** app that lists recordings (paginated), plays **`video_url`**, and can subscribe to **Realtime** / polling. Deploy it anywhere with Node (e.g. laptop, [Vercel](https://vercel.com)); the Pi only needs to run the capture pipeline below.
+
+| | **This repo (Pi)** | **[Web dashboard](https://github.com/DCabahug1/rpi-security-camera-web-dashboard)** |
+|--|-------------------|--------------------------------------------------------------------------------------|
+| **Runs on** | Raspberry Pi (Python) | Any host with Node |
+| **Supabase key** | **`SUPABASE_SERVICE_ROLE_KEY`** (secret; on the Pi only; inserts + uploads; bypasses RLS) | **`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`** (anon; browser-safe; must be allowed to **read** `recordings` / play URLs per your policies) |
+| **Role** | Writes **`recordings`** rows and **Storage** objects | Reads the same table and plays **`video_url`** in the browser |
+
+Point both at the **same** Supabase project and `recordings` schema. Enable **RLS** as you prefer: e.g. **`anon` `select`** on `public.recordings` for the dashboard, **no** **`anon` `insert`** if only the Pi (service role) writes rows. Ensure **`video_url`** values are playable in a browser (public bucket or signed URLs — see **Troubleshooting**).
+
 ### Layout
 
 | Path | Role |
@@ -92,6 +104,7 @@ python run_camera.py
 Alternatively: `python -m security_camera.capture`
 
 - Press **`q`** to quit.
+- View clips in the **[web dashboard](https://github.com/DCabahug1/rpi-security-camera-web-dashboard)** once it is configured for the same Supabase project (`pnpm dev`, etc.).
 - Each trigger records **150 frames** at **30 FPS** (~**5 seconds**), writes **`output.mp4`**, uploads to `clips/<uuid>.mp4`, and inserts **`recordings`** with **`video_url`**.
 
 ## Troubleshooting
