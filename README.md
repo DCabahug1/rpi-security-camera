@@ -69,15 +69,18 @@ Copy `.env` from your secrets workflow (do **not** commit real keys). Create a f
 | Variable | Purpose |
 |----------|---------|
 | `SUPABASE_URL` | Project URL (Supabase **Settings → API**). |
-| `SUPABASE_PUBLISHABLE_KEY` | Publishable / `anon` key for client-style access. |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Secret** key (`service_role`). Used only by this app on a **trusted** machine (e.g. your Pi). **Bypasses RLS.** Never commit it, never put it in a browser or frontend. |
 | `SUPABASE_STORAGE_BUCKET` | Storage **bucket name** (create under **Storage** in the dashboard). |
+
+Replace `SUPABASE_PUBLISHABLE_KEY` in your `.env` with `SUPABASE_SERVICE_ROLE_KEY` if you were using the anon key before.
 
 ### 6. Supabase dashboard
 
-1. **Storage** — Create the bucket whose name matches `SUPABASE_STORAGE_BUCKET`. Add policies so your key can **upload** (and optionally **read**) objects; for public playback URLs, the bucket is often **public** or you use **signed URLs** instead of `get_public_url`.
-2. **SQL** — Create the `recordings` table (see your schema) and **RLS** policies so **`anon`** can **`insert`** (and **`select`** if needed), or use the **service role** only on a trusted server.
+1. **API** — Copy **`service_role`** from **Settings → API** (legacy keys tab or equivalent) into `SUPABASE_SERVICE_ROLE_KEY` on the device only.
+2. **Storage** — Create the bucket named in `SUPABASE_STORAGE_BUCKET`. With **service role**, uploads from this app work without wide-open **`anon`** Storage policies; tighten **public** read vs **signed URLs** to match how you serve videos in a browser.
+3. **SQL** — Enable **RLS** on `recordings`. You can allow **`anon`** **`select`** only (e.g. public list in a future web UI) and **no** **`anon`** **`insert`** — inserts from the Pi use **service role** and bypass RLS.
 
-Example policies depend on your security model; start from the [Supabase Flask quickstart](https://supabase.com/docs/guides/getting-started/quickstarts/flask) and [Storage docs](https://supabase.com/docs/guides/storage).
+See [Supabase API keys](https://supabase.com/docs/guides/api/api-keys) and [Storage](https://supabase.com/docs/guides/storage).
 
 ## Run
 
